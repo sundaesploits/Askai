@@ -1,0 +1,51 @@
+#!/bin/bash
+
+DIRECTORY_PATH=$HOME/.api_keys/askai/ #directory to store the apikey
+FILE_PATH=$DIRECTORY_PATH/.apikey #api key file path
+
+#check if the api key file exists,readable and is not empty
+if [ -f "$FILE_PATH" ] && [ -r "$FILE_PATH" ] && [ -s "$FILE_PATH" ]; then
+        
+        if [[ "$@" == "reset" ]];then #if the command is "reset"
+            rm -r $FILE_PATH 2>/dev/null #remove the apikey file
+            echo "Removed existing API_KEY, restart Program"
+        
+        elif [[ "$@" == "show" ]];then #if the commad is "show" 
+            echo STORED API KEY : $(cat $FILE_PATH) #show stored api key
+        else
+            # do request to return the gemini result
+            api_key=$(cat $FILE_PATH)
+            curl -s "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent" \
+                -H "Content-Type: application/json" \
+                -H "X-Goog-Api-Key: $api_key" \
+                -d "{
+                    \"contents\": [{
+                    \"parts\":[{\"text\": \"$* - answer with onlynecessary words ,straight to the answer\"}]
+                    }]
+                }" | jq -r '.candidates[0].content.parts[0].text'
+        fi
+        
+        
+else   
+    # store api key if not stored 
+    read -p "Enter new API KEY [keep BLANK to create new]: " api_key
+    
+    #redirect to browser to create gemini api key
+    if [ -s $api_key ];then
+        xdg-open "https://aistudio.google.com/api-keys"
+        echo "Redirecting to https://aistudio.google.com/api-keys"
+        echo "Get the API KEY and restart the program!"
+        exit
+
+    #add the api key  into api key file
+    else
+        echo $api_key
+        mkdir -p $DIRECTORY_PATH
+        touch $DIRECTORY_PATH/.apikey
+        echo $api_key > $DIRECTORY_PATH/.apikey 2> /dev/null
+        echo "API KEY SET, restart the program!"
+        exit
+    fi
+    
+fi
+
